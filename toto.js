@@ -48,7 +48,7 @@ Toto.prototype.request = function(method, args, successCallback, errorCallback) 
   toto = this,
   session = this.sessionID(),
   hmac = session && this.hmac(body),
-  xhr = window.XMLHttpRequest && XMLHttpRequest;
+  xhr = window.XMLHttpRequest && new XMLHttpRequest();
   if (!xhr) {
     try{
       xhr = new ActiveXObject("Msxml2.XMLHTTP");
