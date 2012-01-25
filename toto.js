@@ -48,7 +48,14 @@ Toto.prototype.request = function(method, args, successCallback, errorCallback) 
   toto = this,
   session = this.sessionID(),
   hmac = session && this.hmac(body),
-  xhr = new XMLHttpRequest();
+  xhr = window.XMLHttpRequest && XMLHttpRequest;
+  if (!xhr) {
+    try{
+      xhr = new ActiveXObject("Msxml2.XMLHTTP");
+    } catch (e) {
+      xhr = new ActiveXObject("Microsoft.XMLHTTP");
+    }
+  }
   xhr.onreadystatechange = function() {
     if(this.readyState == 4 && this.status == 200) {
       var response = JSON.parse(this.responseText),
