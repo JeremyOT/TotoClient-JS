@@ -87,26 +87,27 @@ Toto.prototype.request = function(method, args, successCallback, errorCallback) 
   xhr.setRequestHeader("content-type", "application/json");
   xhr.send(body);
 };
-
 Toto.prototype.authenticate = function(userID, password, successCallback, errorCallback) {
   var toto = this;
-  this.request("account.login", {"user_id": userID, "password": password }, function(response) {
-    localStorage["TOTO_USER_ID" + toto.url] = userID;
+  localStorage["TOTO_USER_ID" + toto.url] = userID;
+  this.request("account.login", {
+    "user_id" : userID,
+    "password" : password
+  }, function(response) {
+    localStorage["TOTO_SESSION_ID" + toto.url] = response.session_id;
+    localStorage["TOTO_SESSION_EXPIRES" + toto.url] = response.expires;
+    successCallback(response);
+  }, errorCallback);
+};
+Toto.prototype.createAccount = function(userID, password, args, successCallback, errorCallback) {
+  var toto = this, authArgs = args || {};
+  authArgs.user_id = userID;
+  authArgs.password = password;
+  localStorage["TOTO_USER_ID" + toto.url] = userID;
+  this.request("account.create", authArgs, function(response) {
     localStorage["TOTO_SESSION_ID" + toto.url] = response.session_id;
     localStorage["TOTO_SESSION_EXPIRES" + toto.url] = response.expires;
     successCallback(response);
   }, errorCallback);
 };
 
-Toto.prototype.createAccount = function(userID, password, args, successCallback, errorCallback) {
-  var toto = this,
-  authArgs = args || {};
-  authArgs.user_id = userID;
-  authArgs.password = password;
-  this.request("account.create", authArgs, function(response) {
-    localStorage["TOTO_USER_ID" + toto.url] = userID;
-    localStorage["TOTO_SESSION_ID" + toto.url] = response.session_id;
-    localStorage["TOTO_SESSION_EXPIRES" + toto.url] = response.expires;
-    successCallback(response);
-  }, errorCallback);
-};
