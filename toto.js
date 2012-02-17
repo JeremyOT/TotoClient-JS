@@ -89,6 +89,7 @@ Toto.prototype.request = function(method, args, successCallback, errorCallback) 
 };
 Toto.prototype.authenticate = function(userID, password, successCallback, errorCallback) {
   var toto = this;
+  userID = userID.toLowerCase();
   localStorage["TOTO_USER_ID" + toto.url] = userID;
   this.request("account.login", {
     "user_id" : userID,
@@ -101,6 +102,7 @@ Toto.prototype.authenticate = function(userID, password, successCallback, errorC
 };
 Toto.prototype.createAccount = function(userID, password, args, successCallback, errorCallback) {
   var toto = this, authArgs = args || {};
+  userID = userID.toLowerCase();
   authArgs.user_id = userID;
   authArgs.password = password;
   localStorage["TOTO_USER_ID" + toto.url] = userID;
