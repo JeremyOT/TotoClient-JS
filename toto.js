@@ -285,3 +285,15 @@ Toto.prototype.logout = function () {
   localStorage["TOTO_SESSION_ID" + toto.url] = null;
   localStorage["TOTO_SESSION_EXPIRES" + toto.url] = null;
 };
+// method is optional, defaults to 'client_error'
+Toto.prototype.registerErrorHandler = function(method) {
+  if (!method)
+    method = 'client_error';
+  baseHandler = window.onerror;
+  var toto = this;
+  window.onerror = function(message, file, line) {
+    if(baseHandler)
+      baseHandler(message, file, line);
+    toto.request(method, {'client_error': {'message': message, 'file': file, 'line':line, 'user_agent': navigator.userAgent}, 'client_type': 'browser_js'});
+  }
+};
