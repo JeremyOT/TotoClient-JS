@@ -281,9 +281,9 @@ Toto.prototype.createAccount = function(userID, password, args, successCallback,
   }, errorCallback);
 };
 Toto.prototype.logout = function () {
-  localStorage["TOTO_USER_ID" + toto.url] = null;
-  localStorage["TOTO_SESSION_ID" + toto.url] = null;
-  localStorage["TOTO_SESSION_EXPIRES" + toto.url] = null;
+  localStorage["TOTO_USER_ID" + this.url] = null;
+  localStorage["TOTO_SESSION_ID" + this.url] = null;
+  localStorage["TOTO_SESSION_EXPIRES" + this.url] = null;
 };
 // method is optional, defaults to 'client_error'
 Toto.prototype.registerErrorHandler = function(method) {
