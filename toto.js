@@ -234,6 +234,11 @@ Toto.prototype.request = function(method, args, successCallback, errorCallback) 
           errorCallback(response.error);
         }
       } else {
+        if (response.session) {
+          localStorage["TOTO_SESSION_ID" + toto.url] = response.session.session_id;
+          localStorage["TOTO_SESSION_EXPIRES" + toto.url] = response.session.expires;
+          localStorage["TOTO_USER_ID" + toto.url] = response.session.user_id;
+        }
         if(successCallback) {
           successCallback(response.result);
         }
@@ -263,8 +268,6 @@ Toto.prototype.authenticate = function(userID, password, successCallback, errorC
     "user_id" : userID,
     "password" : password
   }, function(response) {
-    localStorage["TOTO_SESSION_ID" + toto.url] = response.session_id;
-    localStorage["TOTO_SESSION_EXPIRES" + toto.url] = response.expires;
     successCallback(response);
   }, errorCallback);
 };
@@ -275,8 +278,6 @@ Toto.prototype.createAccount = function(userID, password, args, successCallback,
   authArgs.password = password;
   localStorage["TOTO_USER_ID" + toto.url] = userID;
   this.request("account.create", authArgs, function(response) {
-    localStorage["TOTO_SESSION_ID" + toto.url] = response.session_id;
-    localStorage["TOTO_SESSION_EXPIRES" + toto.url] = response.expires;
     successCallback(response);
   }, errorCallback);
 };
