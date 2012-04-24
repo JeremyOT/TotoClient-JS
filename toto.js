@@ -183,15 +183,12 @@
 
 function Toto(url) {
   this.url = url;
+  this.batchQueue = {};
 };
 
 Toto.prototype.sessionID = function() {
   var session = localStorage["TOTO_SESSION_ID" + this.url], sessionExpires = localStorage["TOTO_SESSION_EXPIRES" + this.url];
   return sessionExpires > (new Date().getTime() / 1000.0) && session;
-};
-
-Toto.prototype.userIDStorageKey = function() {
-  return "TOTO_USER_ID" + this.url;
 };
 
 Toto.prototype.hmac = function(body) {
@@ -209,10 +206,16 @@ Toto.prototype.hmac = function(body) {
 };
 
 Toto.prototype.request = function(method, args, successCallback, errorCallback) {
-  var body = JSON.stringify({
-    "method" : method,
-    "parameters" : args
-  }), toto = this, session = this.sessionID(), hmac = session && this.hmac(body), xhr = window.XMLHttpRequest && new XMLHttpRequest();
+    this.rawRequest({
+      "method" : method,
+      "parameters" : args
+    },
+    successCallback,
+    errorCallback);
+};
+
+Toto.prototype.rawRequest = function(object, successCallback, errorCallback) {
+  var body = JSON.stringify(object), toto = this, session = this.sessionID(), hmac = session && this.hmac(body), xhr = window.XMLHttpRequest && new XMLHttpRequest();
   if(!xhr) {
     try {
       xhr = new ActiveXObject("Msxml2.XMLHTTP");
@@ -234,13 +237,17 @@ Toto.prototype.request = function(method, args, successCallback, errorCallback) 
           errorCallback(response.error);
         }
       } else {
-        if (response.session) {
+        if(response.session) {
           localStorage["TOTO_SESSION_ID" + toto.url] = response.session.session_id;
           localStorage["TOTO_SESSION_EXPIRES" + toto.url] = response.session.expires;
           localStorage["TOTO_USER_ID" + toto.url] = response.session.user_id;
         }
         if(successCallback) {
-          successCallback(response.result);
+          if(response.batch) {
+            successCallback(response.batch);
+          } else {
+            successCallback(response.result);
+          }
         }
       }
     } else if(this.readyState == 4) {
@@ -281,20 +288,67 @@ Toto.prototype.createAccount = function(userID, password, args, successCallback,
     successCallback(response);
   }, errorCallback);
 };
-Toto.prototype.logout = function () {
+Toto.prototype.logout = function() {
   localStorage["TOTO_USER_ID" + this.url] = null;
   localStorage["TOTO_SESSION_ID" + this.url] = null;
   localStorage["TOTO_SESSION_EXPIRES" + this.url] = null;
 };
 // method is optional, defaults to 'client_error'
 Toto.prototype.registerErrorHandler = function(method) {
-  if (!method)
+  if(!method)
     method = 'client_error';
   baseHandler = window.onerror;
   var toto = this;
   window.onerror = function(message, file, line) {
     if(baseHandler)
       baseHandler(message, file, line);
-    toto.request(method, {'client_error': {'message': message, 'file': file, 'line':line, 'user_agent': navigator.userAgent}, 'client_type': 'browser_js'});
+    toto.request(method, {
+      'client_error' : {
+        'message' : message,
+        'file' : file,
+        'line' : line,
+        'user_agent' : navigator.userAgent
+      },
+      'client_type' : 'browser_js'
+    });
   }
+};
+
+Toto.prototype.queueRequest = function(id, method, args, successCallback, errorCallback) {
+  this.batchQueue[id] = {
+    'method' : method,
+    'parameters' : args,
+    'successCallback' : successCallback,
+    'errorCallback' : errorCallback
+  };
+};
+
+Toto.prototype.batchRequest = function(batchCallback) {
+  var batchRequestQueue = this.batchQueue, batch = {};
+  this.batchQueue = {};
+  for(var id in batchRequestQueue) {
+    var request = batchRequestQueue[id];
+    batch[id] = {
+      'method' : request['method'],
+      'parameters' : request['parameters']
+    };
+  }
+  var callback = function(batchResponse) {
+    for(var id in batchResponse) {
+      var response = batchResponse[id];
+      if(response.error) {
+        if(batchRequestQueue[id]['errorCallback']) {
+          batchRequestQueue[id]['errorCallback'](response.error);
+        }
+      } else {
+        if(batchRequestQueue[id]['successCallback']) {
+          batchRequestQueue[id]['successCallback'](response.result);
+        }
+      }
+    }
+    if(batchCallback) {
+      batchCallback();
+    }
+  };
+  this.rawRequest({'batch': batch}, callback, callback);
 };
