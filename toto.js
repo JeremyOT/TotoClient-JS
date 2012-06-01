@@ -181,17 +181,19 @@
 
 //////////////////////// end sha1.js /////////////////////////////
 
+(function(){
 function Toto(url) {
   this.url = url;
   this.batchQueue = {};
 };
 
-Toto.prototype.sessionValue = function(name) {
-    if (!this.localStorageDisabled) {
+var localStorageDisabled = false;
+function sessionValue(name) {
+    if (!localStorageDisabled) {
         try {
             return localStorage[name];
         } catch (e) {
-            this.localStorageDisabled = true;
+            localStorageDisabled = true;
         }
     }
     return;
@@ -202,13 +204,13 @@ Toto.prototype.sessionValue = function(name) {
     return match[1];
 };
 
-Toto.prototype.setSessionValue = function(name, value) {
-    if (!this.localStorageDisabled) {
+function setSessionValue(name, value) {
+    if (!localStorageDisabled) {
         try {
             localStorage[name] = value;
             return;
         } catch (e) {
-            this.localStorageDisabled = true;
+            localStorageDisabled = true;
         }
     }
     return;
@@ -224,12 +226,12 @@ Toto.prototype.setSessionValue = function(name, value) {
 };
 
 Toto.prototype.sessionID = function() {
-  var session = this.sessionValue("TOTO_SESSION_ID" + this.url), sessionExpires = this.sessionValue("TOTO_SESSION_EXPIRES" + this.url);
+  var session = sessionValue("TOTO_SESSION_ID" + this.url), sessionExpires = sessionValue("TOTO_SESSION_EXPIRES" + this.url);
   return sessionExpires > (new Date().getTime() / 1000.0) && session;
 };
 
 Toto.prototype.hmac = function(body) {
-  var userID = this.sessionValue("TOTO_USER_ID" + this.url), hmac = null;
+  var userID = sessionValue("TOTO_USER_ID" + this.url), hmac = null;
   if(userID) {
     hmac = new jsSHA(body, "ASCII").getHMAC(userID, "ASCII", "B64");
     switch(hmac.length % 4) {
@@ -262,7 +264,7 @@ Toto.prototype.rawRequest = function(object, successCallback, errorCallback) {
   }
   xhr.onreadystatechange = function() {
     if(this.readyState == 4 && this.status == 200) {
-      var response = JSON.parse(this.responseText), responseHmac = this.getResponseHeader("x-toto-hmac"), userID = toto.sessionValue("TOTO_USER_ID" + toto.url);
+      var response = JSON.parse(this.responseText), responseHmac = this.getResponseHeader("x-toto-hmac"), userID = sessionValue("TOTO_USER_ID" + toto.url);
       if(responseHmac && userID && toto.hmac(this.responseText) != responseHmac) {
         response.error = {
           "value" : "Invalid response HMAC",
@@ -275,9 +277,9 @@ Toto.prototype.rawRequest = function(object, successCallback, errorCallback) {
         }
       } else {
         if(response.session) {
-          toto.setSessionValue("TOTO_SESSION_ID" + toto.url, response.session.session_id);
-          toto.setSessionValue("TOTO_SESSION_EXPIRES" + toto.url, response.session.expires);
-          toto.setSessionValue("TOTO_USER_ID" + toto.url, response.session.user_id);
+          setSessionValue("TOTO_SESSION_ID" + toto.url, response.session.session_id);
+          setSessionValue("TOTO_SESSION_EXPIRES" + toto.url, response.session.expires);
+          setSessionValue("TOTO_USER_ID" + toto.url, response.session.user_id);
         }
         if(successCallback) {
           if(response.batch) {
@@ -307,7 +309,7 @@ Toto.prototype.rawRequest = function(object, successCallback, errorCallback) {
 Toto.prototype.authenticate = function(userID, password, successCallback, errorCallback) {
   var toto = this;
   userID = userID.toLowerCase();
-  toto.setSessionValue("TOTO_USER_ID" + toto.url, userID);
+  setSessionValue("TOTO_USER_ID" + toto.url, userID);
   toto.request("account.login", {
     "user_id" : userID,
     "password" : password
@@ -320,15 +322,15 @@ Toto.prototype.createAccount = function(userID, password, args, successCallback,
   userID = userID.toLowerCase();
   authArgs.user_id = userID;
   authArgs.password = password;
-  toto.setSessionValue("TOTO_USER_ID" + toto.url, userID);
+  setSessionValue("TOTO_USER_ID" + toto.url, userID);
   toto.request("account.create", authArgs, function(response) {
     successCallback(response);
   }, errorCallback);
 };
 Toto.prototype.logout = function() {
-  this.setSessionValue("TOTO_USER_ID" + this.url, null);
-  this.setSessionValue("TOTO_SESSION_ID" + this.url, null);
-  this.setSessionValue("TOTO_SESSION_EXPIRES" + this.url, null);
+  setSessionValue("TOTO_USER_ID" + this.url, null);
+  setSessionValue("TOTO_SESSION_ID" + this.url, null);
+  setSessionValue("TOTO_SESSION_EXPIRES" + this.url, null);
 };
 // method is optional, defaults to 'client_error'
 Toto.prototype.registerErrorHandler = function(method) {
@@ -389,3 +391,6 @@ Toto.prototype.batchRequest = function(batchCallback) {
   };
   this.rawRequest({'batch': batch}, callback, callback);
 };
+
+window.Toto = Toto;
+})();
