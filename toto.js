@@ -295,7 +295,7 @@
           var message = JSON.parse(event.data);
           if(message.message_id && totoSocket._onMessageId[message.message_id]) {
             totoSocket._onMessageId[message.message_id](message.data);
-          } else {
+          } else if(totoSocket._onMessage) {
             totoSocket._onMessage(message);
           }
         };
@@ -545,12 +545,32 @@
       return a.href.replace(/^http/i, 'ws');
     }
 
+
     Toto.prototype.createSocket = function(path) {
       if(!this.socketSupported()) {
         return null;
       }
       var socketUrl = path && (path.indexOf('ws://') == 0 || path.indexOf('wss://') == 0) ? path : convertToSocketUrl(this.url, path || 'websocket');
       return new TotoSocket(socketUrl, this);
+    };
+
+    Toto.prototype.registerRemoteWorker = function(path) {
+      if(!this.socketSupported() || this._remoteWorkerSocket) {
+        return;
+      }
+      var socketUrl = path && (path.indexOf('ws://') == 0 || path.indexOf('wss://') == 0) ? path : convertToSocketUrl(this.url, path || 'remoteworker');
+      this._remoteWorkerSocket = new TotoSocket(socketUrl, this);
+      var socket = this._remoteWorkerSocket;
+      socket.onMessage(null, function(task) {
+        var finishHandler = function(data) {
+          socket._socket.send(JSON.stringify({
+            operation_id : task.operation_id,
+            result : data
+          }));
+        };
+        eval('(' + task.script + ')')(finishHandler);
+      });
+      socket.open();
     };
 
     window.Toto = Toto;
