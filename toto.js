@@ -253,7 +253,7 @@
         return this;
       };
 
-      TotoSocket.prototype.onClose = function(handler) {
+      TotoSocket.prototype.onClosed = function(handler) {
         this._onClosed = handler;
         if(this._state == SocketClosed) {
           handler(this);
@@ -301,11 +301,11 @@
         };
       };
 
-      TotoSocket.prototype.closeSocket = function() {
+      TotoSocket.prototype.close = function() {
         this._socket.close();
       }
 
-      Toto.prototype.sendMessage = function(method, params) {
+      TotoSocket.prototype.send = function(method, params) {
         this._socket.send(JSON.stringify({
           method : method,
           parameters : params
@@ -539,13 +539,17 @@
       return !!window.WebSocket;
     };
 
+    function convertToSocketUrl(url, path) {
+      var a = document.createElement('a');
+      a.href = url + (path.charAt(0) == '/' ? path : '/' + path);
+      return a.href.replace(/^http/i, 'ws');
+    }
+
     Toto.prototype.createSocket = function(path) {
-      if(!this.socketSupported())
+      if(!this.socketSupported()) {
         return null;
-      var socketUrl = url.replace(/^http/i, 'ws');
-      if(socketUrl.charAt(socketUrl.length - 1) != '/')
-        socketUrl += '/';
-      socketUrl += path || 'websocket';
+      }
+      var socketUrl = path && (path.indexOf('ws://') == 0 || path.indexOf('wss://') == 0) ? path : convertToSocketUrl(this.url, path || 'websocket');
       return new TotoSocket(socketUrl, this);
     };
 
