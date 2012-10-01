@@ -462,9 +462,9 @@
       }, errorCallback);
     };
     Toto.prototype.logout = function() {
-      setSessionValue("TOTO_USER_ID" + this.url, null);
-      setSessionValue("TOTO_SESSION_ID" + this.url, null);
-      setSessionValue("TOTO_SESSION_EXPIRES" + this.url, null);
+      setSessionValue("TOTO_USER_ID" + this.url, '');
+      setSessionValue("TOTO_SESSION_ID" + this.url, '');
+      setSessionValue("TOTO_SESSION_EXPIRES" + this.url, '');
     };
     // method is optional, defaults to 'client_error'
     Toto.prototype.registerErrorHandler = function(method) {
