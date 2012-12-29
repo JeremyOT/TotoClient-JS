@@ -379,14 +379,14 @@
       return hmac;
     };
 
-    Toto.prototype.request = function(method, args, successCallback, errorCallback) {
+    Toto.prototype.request = function(method, args) {
       return this.rawRequest({
         "method" : method,
         "parameters" : args
-      }, successCallback, errorCallback);
+      });
     };
 
-    Toto.prototype.rawRequest = function(object, successCallback, errorCallback) {
+    Toto.prototype.rawRequest = function(object) {
       var body = JSON.stringify(object), toto = this, session = this.sessionID(), hmac = session && this.hmac(body), xhr = window.XMLHttpRequest && new XMLHttpRequest(), future = new Future();
       if(!xhr) {
         try {
@@ -408,18 +408,12 @@
             if (response.error.code == 1004) {
               toto.logout();
             }
-            if(errorCallback) {
-              errorCallback(response.error, this);
-            }
             future.fail(response.error, this);
           } else {
             if(response.session) {
               setSessionValue("TOTO_SESSION_ID" + toto.url, response.session.session_id);
               setSessionValue("TOTO_SESSION_EXPIRES" + toto.url, response.session.expires);
               setSessionValue("TOTO_USER_ID" + toto.url, response.session.user_id);
-            }
-            if(successCallback) {
-              successCallback(response.batch || response.result, this);
             }
             future.finish(response.batch || response.result, this);
           }
@@ -428,9 +422,6 @@
             "value" : this.responseText,
             "code" : this.status
           };
-          if(errorCallback) {
-            errorCallback(error, this);
-          }
           future.fail(error, this);
         }
       };
@@ -443,26 +434,22 @@
       xhr.send(body);
       return future;
     };
-    Toto.prototype.authenticate = function(userID, password, successCallback, errorCallback) {
+    Toto.prototype.authenticate = function(userID, password) {
       var toto = this;
       userID = userID.toLowerCase();
       setSessionValue("TOTO_USER_ID" + toto.url, userID);
       return toto.request("account.login", {
         "user_id" : userID,
         "password" : password
-      }, function(response) {
-        successCallback(response);
-      }, errorCallback);
+      });
     };
-    Toto.prototype.createAccount = function(userID, password, args, successCallback, errorCallback) {
+    Toto.prototype.createAccount = function(userID, password, args) {
       var toto = this, authArgs = args || {};
       userID = userID.toLowerCase();
       authArgs.user_id = userID;
       authArgs.password = password;
       setSessionValue("TOTO_USER_ID" + toto.url, userID);
-      return toto.request("account.create", authArgs, function(response) {
-        successCallback(response);
-      }, errorCallback);
+      return toto.request("account.create", authArgs);
     };
     Toto.prototype.logout = function() {
       setSessionValue("TOTO_USER_ID" + this.url, '');
@@ -490,19 +477,17 @@
       }
     };
 
-    Toto.prototype.queueRequest = function(id, method, args, successCallback, errorCallback) {
+    Toto.prototype.queueRequest = function(id, method, args) {
       var future = new Future();
       this.batchQueue[id] = {
         'method' : method,
         'parameters' : args,
-        'successCallback' : successCallback,
-        'errorCallback' : errorCallback,
         'future' : future
       };
       return future;
     };
 
-    Toto.prototype.batchRequest = function(batchCallback) {
+    Toto.prototype.batchRequest = function() {
       var batchRequestQueue = this.batchQueue, batch = {}, future = new Future();
       this.batchQueue = {};
       for(var id in batchRequestQueue) {
@@ -516,19 +501,10 @@
         for(var id in batchResponse) {
           var response = batchResponse[id];
           if(response.error) {
-            if(batchRequestQueue[id]['errorCallback']) {
-              batchRequestQueue[id]['errorCallback'](response.error, xhr);
-            }
             batchRequestQueue[id]['future'].fail(response.error, xhr);
           } else {
-            if(batchRequestQueue[id]['successCallback']) {
-              batchRequestQueue[id]['successCallback'](response.result, xhr);
-            }
             batchRequestQueue[id]['future'].finish(response.result, xhr);
           }
-        }
-        if(batchCallback) {
-          batchCallback();
         }
         future.finish();
       };
