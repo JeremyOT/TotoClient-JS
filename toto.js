@@ -195,26 +195,26 @@
         this._result = null;
       };
 
-      Future.prototype.finish = function(args) {
-        this._result = args;
+      Future.prototype.finish = function() {
+        this._result = arguments;
         this._state = FutureFinished;
         for(var i = 0; i < this._onFinish.length; i++) {
-          this._onFinish[i](this._result);
+          this._onFinish[i].apply(null, this._result);
         }
       };
 
-      Future.prototype.fail = function(args) {
-        this._result = args;
+      Future.prototype.fail = function() {
+        this._result = arguments;
         this._state = FutureFailed;
         for(var i = 0; i < this._onError.length; i++) {
-          this._onError[i](this._result);
+          this._onError[i].apply(null, this._result);
         }
       };
 
       Future.prototype.then = function(handler) {
         this._onFinish.push(handler);
         if(this._state == FutureFinished) {
-          handler(this._result);
+          handler.apply(null, this._result);
         }
         return this;
       };
@@ -222,7 +222,7 @@
       Future.prototype.error = function(handler) {
         this._onError.push(handler);
         if(this._state == FutureFailed) {
-          handler(this._result);
+          handler.apply(null, this._result);
         }
         return this;
       };
@@ -405,10 +405,13 @@
             };
           }
           if(response.error) {
-            if(errorCallback) {
-              errorCallback(response.error);
+            if (response.error.code == 1004) {
+              toto.logout();
             }
-            future.fail(response.error);
+            if(errorCallback) {
+              errorCallback(response.error, this);
+            }
+            future.fail(response.error, this);
           } else {
             if(response.session) {
               setSessionValue("TOTO_SESSION_ID" + toto.url, response.session.session_id);
@@ -416,19 +419,19 @@
               setSessionValue("TOTO_USER_ID" + toto.url, response.session.user_id);
             }
             if(successCallback) {
-              successCallback(response.batch || response.result);
+              successCallback(response.batch || response.result, this);
             }
-            future.finish(response.batch || response.result);
+            future.finish(response.batch || response.result, this);
           }
-        } else if(this.readyState == 4) {
+        } else if (this.readyState == 4) {
           var error = {
             "value" : this.responseText,
             "code" : this.status
           };
           if(errorCallback) {
-            errorCallback(error);
+            errorCallback(error, this);
           }
-          future.fail(error);
+          future.fail(error, this);
         }
       };
       xhr.open("POST", this.url);
@@ -509,19 +512,19 @@
           'parameters' : request['parameters']
         };
       }
-      var callback = function(batchResponse) {
+      var callback = function(batchResponse, xhr) {
         for(var id in batchResponse) {
           var response = batchResponse[id];
           if(response.error) {
             if(batchRequestQueue[id]['errorCallback']) {
-              batchRequestQueue[id]['errorCallback'](response.error);
+              batchRequestQueue[id]['errorCallback'](response.error, xhr);
             }
-            batchRequestQueue[id]['future'].fail(response.error);
+            batchRequestQueue[id]['future'].fail(response.error, xhr);
           } else {
             if(batchRequestQueue[id]['successCallback']) {
-              batchRequestQueue[id]['successCallback'](response.result);
+              batchRequestQueue[id]['successCallback'](response.result, xhr);
             }
-            batchRequestQueue[id]['future'].finish(response.result);
+            batchRequestQueue[id]['future'].finish(response.result, xhr);
           }
         }
         if(batchCallback) {
