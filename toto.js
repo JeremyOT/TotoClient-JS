@@ -351,11 +351,10 @@
           localStorageDisabled = true;
         }
       }
-      return;
       var re = new RegExp(name + '=(.+?);'), match = re.exec(document.cookie), newVal = value ? [name, '=', value, ';'].join('') : '', cookie = document.cookie;
-      if(match) {
+      if (match) {
         document.cookie = cookie.replace(re, newVal);
-      } else if(value) {
+      } else if (value) {
         document.cookie = newVal + cookie;
       }
     };
@@ -365,8 +364,12 @@
       return sessionExpires > (new Date().getTime() / 1000.0) && session;
     };
 
+    Toto.prototype.userID = function() {
+      return sessionValue("TOTO_USER_ID" + this.url);
+    };
+
     Toto.prototype.hmac = function(body) {
-      var userID = sessionValue("TOTO_USER_ID" + this.url), hmac = null;
+      var userID = this.userID(), hmac = null;
       if(userID) {
         hmac = new jsSHA(body, "ASCII").getHMAC(userID, "ASCII", "B64");
         switch(hmac.length % 4) {
@@ -397,7 +400,7 @@
       }
       xhr.onreadystatechange = function() {
         if(this.readyState == 4 && this.status == 200) {
-          var response = JSON.parse(this.responseText), responseHmac = this.getResponseHeader("x-toto-hmac"), userID = sessionValue("TOTO_USER_ID" + toto.url);
+          var response = JSON.parse(this.responseText), responseHmac = this.getResponseHeader("x-toto-hmac"), userID = toto.userID();
           if(responseHmac && userID && toto.hmac(this.responseText) != responseHmac) {
             response.error = {
               "value" : "Invalid response HMAC",
@@ -411,9 +414,13 @@
             future.fail(response.error, this);
           } else {
             if(response.session) {
+              var originalUserID = toto.userID();
               setSessionValue("TOTO_SESSION_ID" + toto.url, response.session.session_id);
               setSessionValue("TOTO_SESSION_EXPIRES" + toto.url, response.session.expires);
               setSessionValue("TOTO_USER_ID" + toto.url, response.session.user_id);
+              if (originalUserID != response.session.user_id) {
+                toto.userStateChanged(response.session.user_id);
+              }
             }
             future.finish(response.batch || response.result, this);
           }
@@ -434,27 +441,24 @@
       xhr.send(body);
       return future;
     };
-    Toto.prototype.authenticate = function(userID, password) {
-      var toto = this;
-      userID = userID.toLowerCase();
-      setSessionValue("TOTO_USER_ID" + toto.url, userID);
-      return toto.request("account.login", {
-        "user_id" : userID,
-        "password" : password
-      });
-    };
-    Toto.prototype.createAccount = function(userID, password, args) {
-      var toto = this, authArgs = args || {};
-      userID = userID.toLowerCase();
-      authArgs.user_id = userID;
-      authArgs.password = password;
-      setSessionValue("TOTO_USER_ID" + toto.url, userID);
-      return toto.request("account.create", authArgs);
-    };
     Toto.prototype.logout = function() {
       setSessionValue("TOTO_USER_ID" + this.url, '');
       setSessionValue("TOTO_SESSION_ID" + this.url, '');
       setSessionValue("TOTO_SESSION_EXPIRES" + this.url, '');
+      this.userStateChanged();
+    };
+    Toto.prototype.userStateChanged = function(arg) {
+      if (typeof arg === 'function') {
+        this.onUserStateChanged = arg;
+      } else if (typeof arg === 'null') {
+        delete this.onUserStateChanged;
+      } else if (typeof arg === 'undefined') {
+        if (this.onUserStateChanged) {
+          this.onUserStateChanged(this.userID());
+        }
+      } else if (this.onUserStateChanged) {
+        this.onUserStateChanged(arg);
+      }
     };
     // method is optional, defaults to 'client_error'
     Toto.prototype.registerErrorHandler = function(method) {
