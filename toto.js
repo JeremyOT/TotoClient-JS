@@ -351,22 +351,30 @@
           localStorageDisabled = true;
         }
       }
-      var re = new RegExp(name + '=(.+?);'), match = re.exec(document.cookie), newVal = value ? [name, '=', value, ';'].join('') : '', cookie = document.cookie;
-      if (match) {
-        document.cookie = cookie.replace(re, newVal);
-      } else if (value) {
-        document.cookie = newVal + cookie;
-      }
+      document.cookie = [name, '=', value, ';'].join('');
     };
 
     Toto.prototype.sessionID = function() {
-      var session = sessionValue("TOTO_SESSION_ID" + this.url), sessionExpires = sessionValue("TOTO_SESSION_EXPIRES" + this.url);
-      return sessionExpires > (new Date().getTime() / 1000.0) && session;
+      return this.sessionExpires() > (new Date().getTime() / 1000.0) && sessionValue("TOTO_SESSION_ID" + this.url);
     };
 
     Toto.prototype.userID = function() {
       return sessionValue("TOTO_USER_ID" + this.url);
     };
+
+    Toto.prototype.sessionExpires = function() {
+      return sessionValue("TOTO_SESSION_EXPIRES" + this.url);
+    };
+
+    Toto.prototype.sessionData = function(data) {
+      if (data) {
+        setSessionValue("TOTO_SESSION_ID" + this.url, data.session_id);
+        setSessionValue("TOTO_SESSION_EXPIRES" + this.url, data.expires);
+        setSessionValue("TOTO_USER_ID" + this.url, data.user_id);
+      } else {
+        return {'session_id': this.sessionID(), 'user_id': this.userID(), 'expires': this.sessionExpires()};
+      }
+    }
 
     Toto.prototype.hmac = function(body) {
       var userID = this.userID(), hmac = null;
@@ -415,9 +423,7 @@
           } else {
             if(response.session) {
               var originalUserID = toto.userID();
-              setSessionValue("TOTO_SESSION_ID" + toto.url, response.session.session_id);
-              setSessionValue("TOTO_SESSION_EXPIRES" + toto.url, response.session.expires);
-              setSessionValue("TOTO_USER_ID" + toto.url, response.session.user_id);
+              toto.sessionData(response.session);
               if (originalUserID != response.session.user_id) {
                 toto.userStateChanged(response.session.user_id);
               }
@@ -442,9 +448,8 @@
       return future;
     };
     Toto.prototype.logout = function() {
-      setSessionValue("TOTO_USER_ID" + this.url, '');
-      setSessionValue("TOTO_SESSION_ID" + this.url, '');
-      setSessionValue("TOTO_SESSION_EXPIRES" + this.url, '');
+      document.cookie = 'toto-session-id=;';
+      this.sessionData({'user_id': '', 'session_id': '', 'expires': 0});
       this.userStateChanged();
     };
     Toto.prototype.userStateChanged = function(arg) {
@@ -555,6 +560,6 @@
       });
       socket.open();
     };
-
+    Toto.Future = Future;
     window.Toto = Toto;
   })();
